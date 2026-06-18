@@ -1,0 +1,8 @@
+*.swp
+Thumbs.db
+desktop.ini
+
+# The full 66-clip audio set (225 MB) is the local source pool; deployment
+# serves only audio_subset/ (10 clips). Keep the heavy folder out of the repo.
+# To deploy all 66, point config.js ITEMS_FILE at items.json and un-ignore this.
+audio/

@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TGSR Human Evaluation &mdash; Introduction</title>
+<style>
+  :root { --accent: #2563eb; --hl: #facc15; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: #f4f6fa; margin: 0; padding: 36px 16px 64px; color: #1e293b;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+  .card {
+    background: #fff; border-radius: 12px; padding: 30px 36px; margin-bottom: 18px;
+    box-shadow: 0 2px 14px rgba(0,0,0,.07);
+  }
+  h1 { font-size: 1.5rem; margin: 0 0 6px; }
+  .sub { color: #64748b; margin: 0; font-size: .98rem; }
+  h2 { font-size: 1.12rem; margin: 0 0 12px; color: #1e293b; }
+  p { line-height: 1.65; color: #334155; }
+  .step-num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 26px; height: 26px; border-radius: 50%; background: var(--accent);
+    color: #fff; font-weight: 700; font-size: .9rem; margin-right: 8px; flex: none;
+  }
+  /* illustrative example */
+  .demo-wave {
+    height: 60px; border-radius: 8px; border: 1px solid #e2e8f0; position: relative;
+    background: repeating-linear-gradient(90deg, #cbd5e1 0 2px, transparent 2px 7px);
+    background-position: center; background-size: auto 60%; background-repeat: repeat-x;
+    margin: 10px 0;
+  }
+  .demo-hl {
+    position: absolute; top: 0; bottom: 0; left: 32%; width: 26%;
+    background: rgba(250, 204, 21, 0.4); border-left: 2px solid #eab308; border-right: 2px solid #eab308;
+  }
+  .demo-step {
+    background: #f8fafc; border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0;
+    padding: 12px 16px; line-height: 1.6; font-size: .96rem;
+  }
+  .demo-step mark { background: var(--hl); padding: 1px 4px; border-radius: 4px; font-weight: 600; }
+  /* question explainer */
+  .q { border: 1px solid #e2e8f0; border-radius: 10px; padding: 16px 18px; margin-top: 14px; }
+  .q-title { font-weight: 700; margin-bottom: 4px; }
+  .q-title .tag {
+    display: inline-block; font-size: .72rem; font-weight: 700; color: #fff; background: var(--accent);
+    border-radius: 5px; padding: 2px 7px; margin-right: 8px; vertical-align: middle;
+  }
+  .q p { margin: 6px 0 0; font-size: .94rem; }
+  .scale { margin: 10px 0 0; padding-left: 18px; font-size: .9rem; color: #475569; line-height: 1.6; }
+  .reveal-note {
+    margin-top: 12px; font-size: .9rem; color: #b45309; background: #fef3c7;
+    border-radius: 8px; padding: 10px 14px;
+  }
+  ul.notes { line-height: 1.7; color: #334155; font-size: .94rem; padding-left: 20px; }
+  label { display: block; font-weight: 600; margin: 14px 0 6px; }
+  input, select {
+    width: 100%; padding: 11px 12px; font-size: 1rem; background: #fff;
+    border: 1px solid #cbd5e1; border-radius: 8px;
+  }
+  .privacy { font-size: .88rem; color: #475569; background: #f1f5f9; border-radius: 8px; padding: 10px 14px; margin-top: 16px; }
+  label.checkbox { display: flex; align-items: center; gap: 8px; font-weight: 400; margin: 8px 0 0; font-size: .92rem; color: #475569; }
+  label.checkbox input { width: auto; }
+  input:disabled { background: #f1f5f9; color: #94a3b8; }
+  button {
+    margin-top: 16px; width: 100%; padding: 13px; font-size: 1.06rem; font-weight: 700;
+    color: #fff; background: var(--accent); border: 0; border-radius: 8px; cursor: pointer;
+  }
+  button:hover { filter: brightness(1.08); }
+  .note { font-size: .85rem; color: #94a3b8; margin-top: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="card">
+    <h1>Grounded Speech Reasoning &mdash; Human Evaluation</h1>
+    <p class="sub">Thank you for participating. This study takes about 10&ndash;15 minutes (10 audio clips).</p>
+  </div>
+
+  <div class="card">
+    <h2>What is this study about?</h2>
+    <p>
+      We are studying an AI model that answers questions about <b>speech audio</b> and, while reasoning,
+      points to <b>specific moments in the audio</b> (timestamps) as evidence for what it says.
+      Your job is to judge whether those timestamps are <b>accurate</b>, <b>helpful</b>, and whether they
+      actually <b>support the model's answer</b>. You do <i>not</i> need any technical background &mdash;
+      just listen carefully and use your judgment.
+    </p>
+  </div>
+
+  <div class="card">
+    <h2>What you will see for each clip</h2>
+    <p><span class="step-num">1</span> An audio player showing the waveform, with one <b>highlighted (yellow) segment</b> &mdash; the timestamp the model referred to. You can play just that segment, or the whole audio for context.</p>
+    <div class="demo-wave"><div class="demo-hl"></div></div>
+    <p><span class="step-num">2</span> One <b>reasoning step</b> the model wrote, with its timestamp highlighted:</p>
+    <div class="demo-step">From <mark>3.7s to 4.6s</mark>, the second speaker says &ldquo;You seem a little nervous,&rdquo; which shows concern about the situation.</div>
+  </div>
+
+  <div class="card">
+    <h2>The three questions</h2>
+
+    <div class="q">
+      <div class="q-title"><span class="tag">Q1</span>Referent Accuracy</div>
+      <p>Does the highlighted audio segment actually <b>contain the evidence</b> described in the reasoning step?</p>
+      <ul class="scale">
+        <li><b>Yes</b> &mdash; the segment clearly contains it</li>
+        <li><b>Partially</b> &mdash; only part of it, or the boundaries are off</li>
+        <li><b>No</b> &mdash; it is not in this segment</li>
+        <li><b>Unsure</b> &mdash; you cannot tell</li>
+      </ul>
+    </div>
+
+    <div class="q">
+      <div class="q-title"><span class="tag">Q2</span>Helpfulness</div>
+      <p>How much does the highlighted segment help you <b>verify and understand what this reasoning step claims</b>?
+        Rate on a scale from <b>1 (not at all)</b> to <b>5 (very much)</b>.</p>
+    </div>
+
+    <div class="q">
+      <div class="q-title"><span class="tag">Q3</span>Answer Supportiveness</div>
+      <p>Does this timestamped evidence <b>support the model's final answer</b> to the question?
+        Rate from <b>1 (contradicts)</b> through <b>3 (neutral)</b> to <b>5 (strongly supports)</b>.</p>
+      <div class="reveal-note">
+        The question the model was solving, the answer choices, and the model's final answer
+        are shown <b>only after you answer Q1 and Q2</b> &mdash; so that knowing the answer does not
+        bias your first two judgments.
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Good to know</h2>
+    <ul class="notes">
+      <li>Listen to the highlighted segment at least once before answering. There are no right or wrong responses &mdash; we want your honest judgment.</li>
+      <li>Your progress is <b>saved automatically</b>. You can close the tab and resume later <b>on the same browser and device</b>.</li>
+      <li>You can go <b>back</b> to a previous clip and change your answers.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <label for="age">Age</label>
+    <input id="age" type="number" min="10" max="100" placeholder="e.g., 25" autocomplete="off">
+    <label class="checkbox"><input type="checkbox" id="age-na"> Prefer not to say</label>
+
+    <label for="education">Highest level of education</label>
+    <select id="education">
+      <option value="" disabled selected>Select one&hellip;</option>
+      <option value="high_school">High school or below</option>
+      <option value="undergraduate">Some college / undergraduate</option>
+      <option value="bachelor">Bachelor's degree</option>
+      <option value="master">Master's degree</option>
+      <option value="doctoral">Doctoral degree</option>
+      <option value="prefer_not_to_say">Prefer not to say</option>
+    </select>
+
+    <p class="privacy">
+      Age and education are collected for <b>aggregate statistics only</b> (to describe the annotator group
+      in our report). They are not linked to your identity and are never published individually,
+      and you may choose <b>&ldquo;Prefer not to say&rdquo;</b> for either.
+    </p>
+
+    <button id="start">Start evaluation</button>
+  </div>
+
+</div>
+<script>
+  // "Prefer not to say" for age disables the number field.
+  const ageInput = document.getElementById('age');
+  const ageNA = document.getElementById('age-na');
+  ageNA.addEventListener('change', () => {
+    ageInput.disabled = ageNA.checked;
+    if (ageNA.checked) ageInput.value = '';
+  });
+
+  // Participant IDs are assigned automatically (no manual entry). The id is
+  // persisted per-browser so reopening this page resumes the same session.
+  // A coordinator-assigned id via ?annotator=... in the link still takes priority.
+  function participantId() {
+    const fromLink = new URLSearchParams(location.search).get('annotator');
+    if (fromLink) return fromLink.trim();
+    let id = localStorage.getItem('tgsr_participant_id');
+    if (!id) {
+      id = 'p_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+      localStorage.setItem('tgsr_participant_id', id);
+    }
+    return id;
+  }
+
+  const go = () => {
+    const age = ageNA.checked ? 'prefer_not_to_say' : ageInput.value.trim();
+    const edu = document.getElementById('education').value;
+    if (!age) { alert('Please enter your age, or choose “Prefer not to say”.'); return; }
+    if (!edu) { alert('Please select your education level.'); return; }
+    const q = new URLSearchParams({ annotator: participantId(), age, education: edu });
+    location.href = 'eval.html?' + q.toString();
+  };
+  document.getElementById('start').addEventListener('click', go);
+</script>
+</body>
+</html>

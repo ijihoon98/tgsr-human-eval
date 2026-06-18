@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TGSR Human Evaluation</title>
+<style>
+  :root { --accent: #2563eb; --hl: #facc15; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    background: #f4f6fa; margin: 0; padding: 28px 16px 60px;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; }
+  .topbar {
+    display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px;
+    color: #475569; font-size: .92rem;
+  }
+  .progress-track { background: #e2e8f0; border-radius: 99px; height: 8px; margin-bottom: 22px; }
+  .progress-fill { background: var(--accent); border-radius: 99px; height: 8px; width: 0%; transition: width .3s; }
+  .card {
+    background: #fff; border-radius: 12px; padding: 26px 30px; margin-bottom: 18px;
+    box-shadow: 0 2px 12px rgba(0,0,0,.06);
+  }
+  h2 { font-size: 1.02rem; margin: 0 0 12px; color: #1e293b; }
+  #waveform { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
+  .audio-controls { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  .audio-controls button {
+    padding: 9px 16px; font-size: .95rem; font-weight: 600; border-radius: 8px;
+    border: 1px solid #cbd5e1; background: #fff; cursor: pointer; color: #334155;
+  }
+  .audio-controls button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .audio-controls button:hover { filter: brightness(.97); }
+  .step-text {
+    font-size: 1.04rem; line-height: 1.7; color: #1e293b;
+    background: #f8fafc; border-left: 4px solid var(--accent); border-radius: 0 8px 8px 0;
+    padding: 14px 18px;
+  }
+  .step-text mark { background: var(--hl); padding: 1px 4px; border-radius: 4px; font-weight: 600; }
+  .q-label { font-weight: 600; margin-bottom: 10px; color: #1e293b; line-height: 1.5; }
+  .opts { display: flex; gap: 10px; flex-wrap: wrap; }
+  .opts label {
+    display: flex; align-items: center; gap: 7px; padding: 10px 16px;
+    border: 1.5px solid #cbd5e1; border-radius: 8px; cursor: pointer; font-size: .97rem;
+    background: #fff; user-select: none;
+  }
+  .opts label:has(input:checked) { border-color: var(--accent); background: #eff6ff; font-weight: 600; }
+  .likert { display: flex; gap: 8px; align-items: stretch; flex-wrap: wrap; }
+  .likert label {
+    flex: 1; min-width: 96px; flex-direction: column; text-align: center; gap: 4px;
+    padding: 10px 6px; font-size: .82rem; color: #475569;
+  }
+  .likert .num { font-size: 1.15rem; font-weight: 700; color: #1e293b; }
+  .navrow { display: flex; justify-content: flex-end; gap: 10px; }
+  #next {
+    padding: 12px 36px; font-size: 1.05rem; font-weight: 700; color: #fff;
+    background: var(--accent); border: 0; border-radius: 8px; cursor: pointer;
+  }
+  #next:disabled { background: #cbd5e1; cursor: not-allowed; }
+  #prev {
+    padding: 12px 22px; font-size: 1.05rem; font-weight: 600; color: #334155;
+    background: #fff; border: 1.5px solid #cbd5e1; border-radius: 8px; cursor: pointer;
+  }
+  #prev:hover:not(:disabled) { filter: brightness(.97); }
+  #prev:disabled { color: #cbd5e1; border-color: #e2e8f0; cursor: not-allowed; }
+  #status { color: #64748b; font-size: .85rem; align-self: center; margin-right: auto; }
+  .ctx { line-height: 1.6; color: #1e293b; margin-bottom: 8px; }
+  .ctx-choices { margin: 6px 0 12px; padding-left: 24px; color: #334155; line-height: 1.7; }
+  .ctx-choices li.model-pick { font-weight: 700; color: #1d4ed8; }
+  .ctx-choices li.model-pick::after { content: "  \2190 model's answer"; font-weight: 600; font-size: .85em; color: #64748b; }
+  .done-card { text-align: center; padding: 60px 30px; }
+  .done-card h1 { color: #16a34a; }
+  .hidden { display: none !important; }
+  .warn { color: #b45309; background: #fef3c7; border-radius: 8px; padding: 10px 14px; font-size: .88rem; margin-top: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <span>Annotator: <b id="who"></b></span>
+    <span id="counter"></span>
+  </div>
+  <div class="progress-track"><div class="progress-fill" id="bar"></div></div>
+
+  <div id="task">
+    <div class="card">
+      <h2>1. Listen to the audio &mdash; the <span style="background:var(--hl);padding:0 6px;border-radius:4px;">yellow segment</span> is the timestamp referenced by the reasoning step</h2>
+      <div id="waveform"></div>
+      <div class="audio-controls">
+        <button class="primary" id="play-region">&#9654; Play highlighted segment</button>
+        <button id="play-all">Play full audio</button>
+        <button id="stop">&#9632; Stop</button>
+      </div>
+      <div id="load-warn" class="warn hidden">Audio is still loading&hellip;</div>
+    </div>
+
+    <div class="card">
+      <h2>2. Reasoning step written by the model</h2>
+      <div class="step-text" id="step-text"></div>
+    </div>
+
+    <div class="card">
+      <div class="q-label">Q1. Does the highlighted audio segment contain the evidence described in the reasoning step?</div>
+      <div class="opts" id="q1">
+        <label><input type="radio" name="q1" value="yes"> Yes</label>
+        <label><input type="radio" name="q1" value="partially"> Partially</label>
+        <label><input type="radio" name="q1" value="no"> No</label>
+        <label><input type="radio" name="q1" value="unsure"> Unsure</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="q-label">Q2. How much does the highlighted audio segment help you verify and understand what this reasoning step claims?</div>
+      <div class="opts likert" id="q2">
+        <label><input type="radio" name="q2" value="1"><span class="num">1</span>Not at all</label>
+        <label><input type="radio" name="q2" value="2"><span class="num">2</span>Slightly</label>
+        <label><input type="radio" name="q2" value="3"><span class="num">3</span>Moderately</label>
+        <label><input type="radio" name="q2" value="4"><span class="num">4</span>Considerably</label>
+        <label><input type="radio" name="q2" value="5"><span class="num">5</span>Very much</label>
+      </div>
+    </div>
+
+    <div class="card hidden" id="context-card">
+      <h2>3. The task the model was solving (revealed after Q1&ndash;Q2)</h2>
+      <div class="ctx"><b>Question:</b> <span id="ctx-question"></span></div>
+      <ul class="ctx-choices" id="ctx-choices"></ul>
+      <div class="ctx"><b>Model's final answer:</b> <span id="ctx-answer"></span></div>
+    </div>
+
+    <div class="card hidden" id="q3-card">
+      <div class="q-label">Q3. Does this timestamped evidence support the model's final answer?</div>
+      <div class="opts likert" id="q3">
+        <label><input type="radio" name="q3" value="1"><span class="num">1</span>Contradicts</label>
+        <label><input type="radio" name="q3" value="2"><span class="num">2</span>Does not support</label>
+        <label><input type="radio" name="q3" value="3"><span class="num">3</span>Neutral</label>
+        <label><input type="radio" name="q3" value="4"><span class="num">4</span>Somewhat supports</label>
+        <label><input type="radio" name="q3" value="5"><span class="num">5</span>Strongly supports</label>
+      </div>
+    </div>
+
+    <div class="navrow">
+      <span id="status"></span>
+      <button id="prev" disabled>&larr; Previous</button>
+      <button id="next" disabled>Submit &amp; next &rarr;</button>
+    </div>
+  </div>
+
+  <div id="done" class="card done-card hidden">
+    <h1>&#10003; All done!</h1>
+    <p>Thank you for participating. Your responses have been recorded.</p>
+    <p id="sync-note" class="warn hidden"></p>
+    <div class="audio-controls" style="justify-content:center">
+      <button id="download">Download my answers (JSON backup)</button>
+      <button id="retry-sync" class="hidden primary">Retry upload</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script type="module">
+import WaveSurfer from 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/wavesurfer.esm.js';
+import RegionsPlugin from 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/plugins/regions.esm.js';
+
+const CFG = window.TGSR_CONFIG || { ENDPOINT_URL: '', STUDY_ID: 'tgsr' };
+const TS_RE = /from\s+\d+(?:\.\d+)?\s*(?:s|secs?|seconds?)?\s+to\s+\d+(?:\.\d+)?\s*(?:s|secs?|seconds?)?/gi;
+
+const params = new URLSearchParams(location.search);
+const annotator = (params.get('annotator') || '').trim();
+if (!annotator) location.replace('index.html');
+document.getElementById('who').textContent = annotator;
+
+const LS_KEY = `tgsr_${CFG.STUDY_ID}_${annotator}`;
+const state = JSON.parse(localStorage.getItem(LS_KEY) || '{"answers":[],"pendingUpload":[]}');
+const save = () => localStorage.setItem(LS_KEY, JSON.stringify(state));
+
+// Demographics come from the intro page via URL; persist them so a resumed
+// session (opened without the params) still attaches them to each response.
+const demographics = state.demographics || {};
+if (params.get('age')) demographics.age = params.get('age');
+if (params.get('education')) demographics.education = params.get('education');
+state.demographics = demographics;
+save();
+
+const $ = id => document.getElementById(id);
+let items = [], idx = 0, ws = null, regionsPlugin = null, itemShownAt = 0, ready = false;
+
+async function init() {
+  items = await (await fetch(CFG.ITEMS_FILE || 'items.json')).json();
+  const doneIds = new Set(state.answers.map(a => a.item_id));
+  idx = items.findIndex(it => !doneIds.has(it.item_id));
+  if (idx === -1) { showDone(); return; }
+  render();
+}
+
+function render() {
+  const it = items[idx];
+  $('counter').textContent = `Item ${idx + 1} / ${items.length} (${state.answers.length} answered)`;
+  $('bar').style.width = `${(state.answers.length / items.length) * 100}%`;
+  $('prev').disabled = idx === 0;
+
+  // reasoning step with highlighted timestamps
+  const safe = it.reasoning_step
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  $('step-text').innerHTML = safe.replace(TS_RE, m => `<mark>${m}</mark>`);
+
+  // task context for Q3 (kept hidden until Q1-Q2 are answered)
+  $('ctx-question').textContent = it.question;
+  $('ctx-answer').textContent = it.model_output;
+  const ul = $('ctx-choices');
+  ul.innerHTML = '';
+  for (const c of (it.choices || [])) {
+    const li = document.createElement('li');
+    li.textContent = c;
+    if (c.trim().toLowerCase() === (it.model_output || '').trim().toLowerCase()) li.classList.add('model-pick');
+    ul.appendChild(li);
+  }
+
+  // reset answers, prefilling any previously submitted ones
+  const prev = state.answers.find(a => a.item_id === it.item_id);
+  document.querySelectorAll('input[name=q1]').forEach(r => { r.checked = prev && r.value === prev.referent_accuracy; });
+  document.querySelectorAll('input[name=q2]').forEach(r => { r.checked = prev && Number(r.value) === prev.helpfulness; });
+  document.querySelectorAll('input[name=q3]').forEach(r => { r.checked = prev && Number(r.value) === prev.answer_supportiveness; });
+  updateReveal();
+  $('next').disabled = !answersComplete();
+  $('status').textContent = '';
+
+  // waveform
+  if (ws) ws.destroy();
+  ready = false;
+  $('load-warn').classList.remove('hidden');
+  regionsPlugin = RegionsPlugin.create();
+  ws = WaveSurfer.create({
+    container: '#waveform',
+    url: it.audio_path,
+    height: 96,
+    waveColor: '#94a3b8',
+    progressColor: '#2563eb',
+    cursorColor: '#1e293b',
+    plugins: [regionsPlugin],
+  });
+  ws.on('decode', () => {
+    ready = true;
+    $('load-warn').classList.add('hidden');
+    for (const [start, end] of it.regions) {
+      regionsPlugin.addRegion({
+        start, end,
+        color: 'rgba(250, 204, 21, 0.35)',
+        drag: false, resize: false,
+      });
+    }
+  });
+
+  // Segment playback: play all highlighted regions in chronological order.
+  let segmentMode = false, regionQueue = [];
+  regionsPlugin.on('region-out', () => {
+    if (!segmentMode) return;
+    ws.pause();
+    const next = regionQueue.shift();
+    if (next) next.play(); else segmentMode = false;
+  });
+  $('play-region').onclick = () => {
+    if (!ready) return;
+    const regs = regionsPlugin.getRegions().slice().sort((a, b) => a.start - b.start);
+    if (!regs.length) return;
+    segmentMode = true;
+    regionQueue = regs.slice(1);
+    regs[0].play();
+  };
+  $('play-all').onclick = () => { if (ready) { segmentMode = false; ws.setTime(0); ws.play(); } };
+  $('stop').onclick = () => { if (ready) { ws.pause(); segmentMode = false; } };
+
+  itemShownAt = Date.now();
+  window.scrollTo({ top: 0 });
+}
+
+function answersComplete() {
+  return document.querySelector('input[name=q1]:checked')
+    && document.querySelector('input[name=q2]:checked')
+    && document.querySelector('input[name=q3]:checked');
+}
+// Q3 (and the task context it needs) is revealed only after Q1-Q2 are answered,
+// so knowing the question/answer cannot bias the grounding judgments.
+function updateReveal() {
+  const show = document.querySelector('input[name=q1]:checked') && document.querySelector('input[name=q2]:checked');
+  $('context-card').classList.toggle('hidden', !show);
+  $('q3-card').classList.toggle('hidden', !show);
+}
+document.querySelectorAll('#q1 input, #q2 input, #q3 input').forEach(r =>
+  r.addEventListener('change', () => { updateReveal(); $('next').disabled = !answersComplete(); }));
+
+$('prev').addEventListener('click', () => {
+  if (idx > 0) { idx--; render(); }
+});
+
+function advance() {
+  if (idx + 1 < items.length) { idx++; render(); return; }
+  // at the last item: jump to any item left unanswered, otherwise finish
+  const un = items.findIndex(x => !state.answers.some(a => a.item_id === x.item_id));
+  if (un === -1) showDone(); else { idx = un; render(); }
+}
+
+$('next').addEventListener('click', async () => {
+  const it = items[idx];
+  const ra = document.querySelector('input[name=q1]:checked').value;
+  const help = Number(document.querySelector('input[name=q2]:checked').value);
+  const support = Number(document.querySelector('input[name=q3]:checked').value);
+
+  const existing = state.answers.find(a => a.item_id === it.item_id);
+  if (existing && existing.referent_accuracy === ra && existing.helpfulness === help
+      && existing.answer_supportiveness === support) {
+    advance(); // revisited without changes: nothing to re-submit
+    return;
+  }
+
+  const rec = {
+    study_id: CFG.STUDY_ID,
+    annotator,
+    age: demographics.age || '',
+    education: demographics.education || '',
+    item_id: it.item_id,
+    source_id: it.source_id,
+    referent_accuracy: ra,
+    helpfulness: help,
+    answer_supportiveness: support,
+    duration_ms: Date.now() - itemShownAt,
+    submitted_at: new Date().toISOString(),
+  };
+  if (existing) state.answers[state.answers.indexOf(existing)] = rec;
+  else state.answers.push(rec);
+  save();
+
+  $('next').disabled = true;
+  $('status').textContent = 'Saving…';
+  const ok = await upload(rec);
+  if (!ok) { state.pendingUpload.push(rec); save(); }
+  $('status').textContent = '';
+
+  advance();
+});
+
+async function upload(rec) {
+  if (!CFG.ENDPOINT_URL) return false;
+  try {
+    const res = await fetch(CFG.ENDPOINT_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(rec),
+    });
+    return res.ok;
+  } catch { return false; }
+}
+
+async function flushPending() {
+  const still = [];
+  for (const rec of state.pendingUpload) {
+    if (!(await upload(rec))) still.push(rec);
+  }
+  state.pendingUpload = still;
+  save();
+  return still.length === 0;
+}
+
+function showDone() {
+  if (ws) { ws.destroy(); ws = null; }
+  $('task').classList.add('hidden');
+  $('done').classList.remove('hidden');
+  $('counter').textContent = `Item ${items.length} / ${items.length}`;
+  $('bar').style.width = '100%';
+  updateSyncNote();
+  if (state.pendingUpload.length) flushPending().then(updateSyncNote);
+}
+
+function updateSyncNote() {
+  const n = state.pendingUpload.length;
+  const note = $('sync-note'), retry = $('retry-sync');
+  if (!CFG.ENDPOINT_URL) {
+    note.textContent = 'No upload endpoint is configured — please download the JSON backup below and send it to the study organizer.';
+    note.classList.remove('hidden'); retry.classList.add('hidden');
+  } else if (n > 0) {
+    note.textContent = `${n} response(s) could not be uploaded. Please retry, or download the JSON backup and send it to the study organizer.`;
+    note.classList.remove('hidden'); retry.classList.remove('hidden');
+  } else {
+    note.classList.add('hidden'); retry.classList.add('hidden');
+  }
+}
+
+$('retry-sync').addEventListener('click', async () => { await flushPending(); updateSyncNote(); });
+$('download').addEventListener('click', () => {
+  const blob = new Blob([JSON.stringify(state.answers, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `tgsr_answers_${annotator}.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+init();
+</script>
+</body>
+</html>
