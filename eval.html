@@ -70,6 +70,7 @@
   .ctx-choices li.model-pick::after { content: "  \2190 model's answer"; font-weight: 600; font-size: .85em; color: #64748b; }
   .done-card { text-align: center; padding: 60px 30px; }
   .done-card h1 { color: #16a34a; }
+  .done-emoji { font-size: 4rem; line-height: 1; margin-bottom: 8px; }
   .hidden { display: none !important; }
   .warn { color: #b45309; background: #fef3c7; border-radius: 8px; padding: 10px 14px; font-size: .88rem; margin-top: 12px; }
 </style>
@@ -146,12 +147,13 @@
   </div>
 
   <div id="done" class="card done-card hidden">
-    <h1>&#10003; All done!</h1>
+    <div class="done-emoji">&#127881;</div>
+    <h1>All done!</h1>
     <p>Thank you for participating. Your responses have been recorded.</p>
     <p id="sync-note" class="warn hidden"></p>
     <div class="audio-controls" style="justify-content:center">
-      <button id="download">Download my answers (JSON backup)</button>
       <button id="retry-sync" class="hidden primary">Retry upload</button>
+      <button id="download" class="hidden">Download my answers (JSON backup)</button>
     </div>
   </div>
 </div>
@@ -372,15 +374,17 @@ function showDone() {
 
 function updateSyncNote() {
   const n = state.pendingUpload.length;
-  const note = $('sync-note'), retry = $('retry-sync');
+  const note = $('sync-note'), retry = $('retry-sync'), download = $('download');
+  // The JSON backup is only a fallback: shown when something failed to upload
+  // (or no endpoint is set), never on a clean successful completion.
   if (!CFG.ENDPOINT_URL) {
     note.textContent = 'No upload endpoint is configured — please download the JSON backup below and send it to the study organizer.';
-    note.classList.remove('hidden'); retry.classList.add('hidden');
+    note.classList.remove('hidden'); retry.classList.add('hidden'); download.classList.remove('hidden');
   } else if (n > 0) {
     note.textContent = `${n} response(s) could not be uploaded. Please retry, or download the JSON backup and send it to the study organizer.`;
-    note.classList.remove('hidden'); retry.classList.remove('hidden');
+    note.classList.remove('hidden'); retry.classList.remove('hidden'); download.classList.remove('hidden');
   } else {
-    note.classList.add('hidden'); retry.classList.add('hidden');
+    note.classList.add('hidden'); retry.classList.add('hidden'); download.classList.add('hidden');
   }
 }
 
