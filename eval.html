@@ -116,7 +116,7 @@
 
   <div id="task">
     <div class="card">
-      <h2>1. Listen to the audio &mdash; the <span style="background:var(--hl);padding:0 6px;border-radius:4px;">yellow segment</span> is the timestamp referenced by the reasoning step</h2>
+      <h2>1. Listen to the audio &mdash; <b>click the <span style="background:var(--hl);padding:0 6px;border-radius:4px;">highlighted segment</span> to play it</b>. It is the timestamp referenced by the reasoning step. When there are several, each has its own color and number &mdash; click each one to hear it.</h2>
       <div class="time-readout">
         <span id="cur-time">0.00s</span>
         <span class="time-sep">/</span>
@@ -128,11 +128,10 @@
         <div class="time-cursor" id="time-cursor" style="display:none">0.00s</div>
       </div>
       <div class="audio-controls">
-        <button class="primary" id="play-region">&#9654; Play highlighted segment</button>
         <button id="play-all">&#9654; Play from cursor</button>
         <button id="stop">&#9632; Stop</button>
       </div>
-      <p class="hint">Tip: click a <b>highlighted segment</b> to hear just that part; click anywhere else on the waveform to move the cursor, then press <b>Play from cursor</b>. When a step cites several moments, each is shown in a different color (and numbered) so you can tell them apart.</p>
+      <p class="hint">Tip: <b>click a highlighted segment to play just that part.</b> To listen elsewhere, click anywhere on the waveform to move the cursor, then press <b>Play from cursor</b>. When a step cites several moments, each segment has its own color and number so you can tell them apart &mdash; click each to hear it.</p>
       <div id="load-warn" class="warn hidden">Audio is still loading&hellip;</div>
     </div>
 
@@ -225,6 +224,8 @@ if (!annotator) location.replace('index.html');
 document.getElementById('who').textContent = annotator;
 
 const LS_KEY = `tgsr_${CFG.STUDY_ID}_${annotator}`;
+// ?reset=1 wipes this annotator's saved progress (handy when re-testing).
+if (params.get('reset')) localStorage.removeItem(LS_KEY);
 const state = JSON.parse(localStorage.getItem(LS_KEY) || '{"answers":[],"pendingUpload":[]}');
 const save = () => localStorage.setItem(LS_KEY, JSON.stringify(state));
 
@@ -341,31 +342,18 @@ function render() {
   ws.on('seeking', updateTime);
   ws.on('interaction', () => updateTime(ws.getCurrentTime()));
 
-  // Segment playback: play one or more highlighted regions, pausing at the end
-  // of each. When segmentMode is off, playback runs through to the end as usual.
-  let segmentMode = false, regionQueue = [];
-  const playSegments = regs => {
-    if (!regs.length) return;
-    segmentMode = true;
-    regionQueue = regs.slice(1);
-    regs[0].play();
-  };
+  // Clicking a highlighted segment plays just that segment and pauses at its
+  // end. segmentMode tells the region-out handler to stop there; when off,
+  // playback runs straight through.
+  let segmentMode = false;
   regionsPlugin.on('region-out', () => {
-    if (!segmentMode) return;
-    ws.pause();
-    const next = regionQueue.shift();
-    if (next) next.play(); else segmentMode = false;
+    if (segmentMode) { ws.pause(); segmentMode = false; }
   });
-  // Click directly on the yellow segment -> play just that segment.
   regionsPlugin.on('region-clicked', (region, e) => {
     e.stopPropagation();        // don't let it also seek the cursor
-    if (ready) playSegments([region]);
+    if (ready) { segmentMode = true; region.play(); }
   });
 
-  $('play-region').onclick = () => {
-    if (!ready) return;
-    playSegments(regionsPlugin.getRegions().slice().sort((a, b) => a.start - b.start));
-  };
   // Plain Play resumes from the current cursor position (set by clicking the
   // waveform), playing straight through rather than stopping at a segment.
   $('play-all').onclick = () => { if (ready) { segmentMode = false; ws.play(); } };
