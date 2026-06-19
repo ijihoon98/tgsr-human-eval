@@ -23,8 +23,27 @@
     box-shadow: 0 2px 12px rgba(0,0,0,.06);
   }
   h2 { font-size: 1.02rem; margin: 0 0 12px; color: #1e293b; }
+  .wave-wrap { position: relative; }
   #waveform { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
+  /* moving label that tracks the playback cursor and shows current seconds */
+  .time-cursor {
+    position: absolute; top: -8px; transform: translateX(-50%);
+    background: #1e293b; color: #fff; font-size: .78rem; font-weight: 700;
+    padding: 2px 7px; border-radius: 5px; white-space: nowrap; pointer-events: none;
+    z-index: 5; transition: left .05s linear;
+  }
+  .time-cursor::after {
+    content: ""; position: absolute; left: 50%; top: 100%; transform: translateX(-50%);
+    border: 4px solid transparent; border-top-color: #1e293b;
+  }
+  .time-readout {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+    font-size: .9rem; color: #475569; font-variant-numeric: tabular-nums;
+  }
+  .time-readout #cur-time { font-weight: 700; color: #1e293b; }
+  .time-readout .seg-range { margin-left: auto; color: #b45309; }
   .audio-controls { display: flex; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+  .hint { font-size: .85rem; color: #64748b; margin: 10px 0 0; line-height: 1.5; }
   .audio-controls button {
     padding: 9px 16px; font-size: .95rem; font-weight: 600; border-radius: 8px;
     border: 1px solid #cbd5e1; background: #fff; cursor: pointer; color: #334155;
@@ -37,6 +56,18 @@
     padding: 14px 18px;
   }
   .step-text mark { background: var(--hl); padding: 1px 4px; border-radius: 4px; font-weight: 600; }
+  .step-text mark.seg { color: #1e293b; }
+  .seg-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 16px; height: 16px; border-radius: 50%; color: #fff; font-size: .7rem;
+    font-weight: 700; margin-right: 4px; vertical-align: middle;
+  }
+  .seg-range .seg-badge { margin-left: 4px; }
+  /* number label rendered inside each waveform region */
+  #waveform ::part(region-content) {
+    background: rgba(30,41,59,.85); color: #fff; font-size: .72rem; font-weight: 700;
+    padding: 0 5px; border-radius: 0 0 4px 0;
+  }
   .q-label { font-weight: 600; margin-bottom: 10px; color: #1e293b; line-height: 1.5; }
   .opts { display: flex; gap: 10px; flex-wrap: wrap; }
   .opts label {
@@ -86,12 +117,22 @@
   <div id="task">
     <div class="card">
       <h2>1. Listen to the audio &mdash; the <span style="background:var(--hl);padding:0 6px;border-radius:4px;">yellow segment</span> is the timestamp referenced by the reasoning step</h2>
-      <div id="waveform"></div>
+      <div class="time-readout">
+        <span id="cur-time">0.00s</span>
+        <span class="time-sep">/</span>
+        <span id="total-time">0.00s</span>
+        <span class="seg-range" id="seg-range"></span>
+      </div>
+      <div class="wave-wrap">
+        <div id="waveform"></div>
+        <div class="time-cursor" id="time-cursor" style="display:none">0.00s</div>
+      </div>
       <div class="audio-controls">
         <button class="primary" id="play-region">&#9654; Play highlighted segment</button>
-        <button id="play-all">Play full audio</button>
+        <button id="play-all">&#9654; Play from cursor</button>
         <button id="stop">&#9632; Stop</button>
       </div>
+      <p class="hint">Tip: click a <b>highlighted segment</b> to hear just that part; click anywhere else on the waveform to move the cursor, then press <b>Play from cursor</b>. When a step cites several moments, each is shown in a different color (and numbered) so you can tell them apart.</p>
       <div id="load-warn" class="warn hidden">Audio is still loading&hellip;</div>
     </div>
 
@@ -162,9 +203,21 @@
 <script type="module">
 import WaveSurfer from 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/wavesurfer.esm.js';
 import RegionsPlugin from 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/plugins/regions.esm.js';
+import TimelinePlugin from 'https://cdn.jsdelivr.net/npm/wavesurfer.js@7/dist/plugins/timeline.esm.js';
 
 const CFG = window.TGSR_CONFIG || { ENDPOINT_URL: '', STUDY_ID: 'tgsr' };
 const TS_RE = /from\s+\d+(?:\.\d+)?\s*(?:s|secs?|seconds?)?\s+to\s+\d+(?:\.\d+)?\s*(?:s|secs?|seconds?)?/gi;
+
+// Distinct colors so multiple segments in one step don't blur together. The
+// i-th timestamp in the text, the i-th waveform region, and the readout share
+// a color (and a number when there is more than one).
+const SEG_COLORS = [
+  { fill: 'rgba(250,204,21,0.40)',  mark: '#fde047', badge: '#a16207' }, // yellow
+  { fill: 'rgba(56,189,248,0.42)',  mark: '#bae6fd', badge: '#0369a1' }, // sky
+  { fill: 'rgba(134,239,172,0.45)', mark: '#bbf7d0', badge: '#15803d' }, // green
+  { fill: 'rgba(249,168,212,0.45)', mark: '#fbcfe8', badge: '#be185d' }, // pink
+];
+const segColor = i => SEG_COLORS[i % SEG_COLORS.length];
 
 const params = new URLSearchParams(location.search);
 const annotator = (params.get('annotator') || '').trim();
@@ -200,10 +253,16 @@ function render() {
   $('bar').style.width = `${(state.answers.length / items.length) * 100}%`;
   $('prev').disabled = idx === 0;
 
-  // reasoning step with highlighted timestamps
+  // reasoning step with highlighted timestamps, color-matched to the regions
+  const multi = it.regions.length > 1;
   const safe = it.reasoning_step
     .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-  $('step-text').innerHTML = safe.replace(TS_RE, m => `<mark>${m}</mark>`);
+  let ti = 0;
+  $('step-text').innerHTML = safe.replace(TS_RE, m => {
+    const c = segColor(ti); const num = ti + 1; ti++;
+    const badge = multi ? `<span class="seg-badge" style="background:${c.badge}">${num}</span>` : '';
+    return `<mark class="seg" style="background:${c.mark}">${badge}${m}</mark>`;
+  });
 
   // task context for Q3 (kept hidden until Q1-Q2 are answered)
   $('ctx-question').textContent = it.question;
@@ -230,6 +289,10 @@ function render() {
   if (ws) ws.destroy();
   ready = false;
   $('load-warn').classList.remove('hidden');
+  $('cur-time').textContent = '0.00s';
+  $('total-time').textContent = '0.00s';
+  $('seg-range').textContent = '';
+  $('time-cursor').style.display = 'none';
   regionsPlugin = RegionsPlugin.create();
   ws = WaveSurfer.create({
     container: '#waveform',
@@ -238,37 +301,74 @@ function render() {
     waveColor: '#94a3b8',
     progressColor: '#2563eb',
     cursorColor: '#1e293b',
-    plugins: [regionsPlugin],
+    plugins: [
+      regionsPlugin,
+      TimelinePlugin.create({ height: 18, timeInterval: 0.5, primaryLabelInterval: 1, style: { fontSize: '10px', color: '#64748b' } }),
+    ],
   });
-  ws.on('decode', () => {
+  const multiRegions = it.regions.length > 1;
+  ws.on('decode', dur => {
     ready = true;
     $('load-warn').classList.add('hidden');
-    for (const [start, end] of it.regions) {
+    $('total-time').textContent = dur.toFixed(2) + 's';
+    $('seg-range').innerHTML = 'highlighted: ' + it.regions.map(([s, e], i) => {
+      const c = segColor(i);
+      const tag = multiRegions ? `<span class="seg-badge" style="background:${c.badge}">${i + 1}</span>` : '';
+      return `${tag}${s.toFixed(2)}–${e.toFixed(2)}s`;
+    }).join('&nbsp;&nbsp;');
+    it.regions.forEach(([start, end], i) => {
       regionsPlugin.addRegion({
         start, end,
-        color: 'rgba(250, 204, 21, 0.35)',
+        color: segColor(i).fill,
+        content: multiRegions ? String(i + 1) : undefined,
         drag: false, resize: false,
       });
-    }
+    });
   });
 
-  // Segment playback: play all highlighted regions in chronological order.
+  // live current-time readout + moving label over the waveform cursor
+  const updateTime = t => {
+    const dur = ws.getDuration() || 0;
+    $('cur-time').textContent = t.toFixed(2) + 's';
+    const cursor = $('time-cursor');
+    if (dur > 0) {
+      cursor.style.display = 'block';
+      cursor.style.left = (t / dur * 100) + '%';
+      cursor.textContent = t.toFixed(2) + 's';
+    }
+  };
+  ws.on('timeupdate', updateTime);
+  ws.on('seeking', updateTime);
+  ws.on('interaction', () => updateTime(ws.getCurrentTime()));
+
+  // Segment playback: play one or more highlighted regions, pausing at the end
+  // of each. When segmentMode is off, playback runs through to the end as usual.
   let segmentMode = false, regionQueue = [];
+  const playSegments = regs => {
+    if (!regs.length) return;
+    segmentMode = true;
+    regionQueue = regs.slice(1);
+    regs[0].play();
+  };
   regionsPlugin.on('region-out', () => {
     if (!segmentMode) return;
     ws.pause();
     const next = regionQueue.shift();
     if (next) next.play(); else segmentMode = false;
   });
+  // Click directly on the yellow segment -> play just that segment.
+  regionsPlugin.on('region-clicked', (region, e) => {
+    e.stopPropagation();        // don't let it also seek the cursor
+    if (ready) playSegments([region]);
+  });
+
   $('play-region').onclick = () => {
     if (!ready) return;
-    const regs = regionsPlugin.getRegions().slice().sort((a, b) => a.start - b.start);
-    if (!regs.length) return;
-    segmentMode = true;
-    regionQueue = regs.slice(1);
-    regs[0].play();
+    playSegments(regionsPlugin.getRegions().slice().sort((a, b) => a.start - b.start));
   };
-  $('play-all').onclick = () => { if (ready) { segmentMode = false; ws.setTime(0); ws.play(); } };
+  // Plain Play resumes from the current cursor position (set by clicking the
+  // waveform), playing straight through rather than stopping at a segment.
+  $('play-all').onclick = () => { if (ready) { segmentMode = false; ws.play(); } };
   $('stop').onclick = () => { if (ready) { ws.pause(); segmentMode = false; } };
 
   itemShownAt = Date.now();
