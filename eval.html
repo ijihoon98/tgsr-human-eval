@@ -128,6 +128,7 @@
         <div class="time-cursor" id="time-cursor" style="display:none">0.00s</div>
       </div>
       <div class="audio-controls">
+        <button class="primary" id="play-start">&#9654; Play from beginning</button>
         <button id="play-all">&#9654; Play from cursor</button>
         <button id="stop">&#9632; Stop</button>
       </div>
@@ -354,8 +355,9 @@ function render() {
     if (ready) { segmentMode = true; region.play(); }
   });
 
-  // Plain Play resumes from the current cursor position (set by clicking the
-  // waveform), playing straight through rather than stopping at a segment.
+  // Play from beginning restarts at 0; Play from cursor resumes from the
+  // current position (set by clicking the waveform). Both run straight through.
+  $('play-start').onclick = () => { if (ready) { segmentMode = false; ws.setTime(0); ws.play(); } };
   $('play-all').onclick = () => { if (ready) { segmentMode = false; ws.play(); } };
   $('stop').onclick = () => { if (ready) { ws.pause(); segmentMode = false; } };
 
